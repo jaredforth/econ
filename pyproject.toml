@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thrift"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["litellm[proxy]", "httpx"]
+
+[project.scripts]
+thrift = "thrift.cli:main"
+
+[tool.setuptools]
+packages = ["thrift"]
