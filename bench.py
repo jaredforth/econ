@@ -1,13 +1,13 @@
 """Score candidate router models on labels.csv: accuracy, within-one-tier, latency. Usage: bench.py model [model...]"""
-import asyncio, csv, sys, time, hook
+import asyncio, csv, sys, time, thrift.classify as classify
 T = ["simple", "moderate", "hard"]
 rows = [r for r in csv.DictReader(open("labels.csv", encoding="utf-8")) if len(r["state"]) >= 120]
 for m in sys.argv[1:]:
-    hook.ROUTER_MODEL = m
-    asyncio.run(hook.pick_tier("warm"))
+    classify.ROUTER_MODEL = m
+    asyncio.run(classify.pick_tier("warm"))
     ok = near = 0; lat = []; conf = {}
     for r in rows:
-        t = time.time(); p = asyncio.run(hook.pick_tier(r["state"])); lat.append(time.time() - t)
+        t = time.time(); p = asyncio.run(classify.pick_tier(r["state"])); lat.append(time.time() - t)
         ok += p == r["tier"]; near += abs(T.index(p) - T.index(r["tier"])) <= 1
         conf[(r["tier"], p)] = conf.get((r["tier"], p), 0) + 1
     lat.sort()
