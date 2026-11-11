@@ -10,7 +10,7 @@ def route(args):
     text = sys.stdin.read() if args.prompt == "-" else args.prompt
     tier = asyncio.run(pick_tier(text))
     print(tier)
-    model = os.environ.get(f"BEDROCK_{tier.upper()}")
+    model = os.environ.get(f"THRIFT_{tier.upper()}")
     if model:
         print(model)
 

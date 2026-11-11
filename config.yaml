@@ -1,9 +1,9 @@
-# Bedrock via the AWS credential chain; no Anthropic key. Set in .env: AWS_PROFILE, AWS_REGION_NAME,
-# BEDROCK_SIMPLE / BEDROCK_MODERATE / BEDROCK_HARD (exact inference-profile IDs, e.g. us.anthropic.<model>-v1:0).
+# Each tier is any LiteLLM model string, set in .env as THRIFT_SIMPLE / THRIFT_MODERATE / THRIFT_HARD.
+# See .env.example for a Bedrock set and an all-local (Ollama) set.
 model_list:
-  - {model_name: simple,   litellm_params: {model: os.environ/BEDROCK_SIMPLE}}
-  - {model_name: moderate, litellm_params: {model: os.environ/BEDROCK_MODERATE}}
-  - {model_name: hard,     litellm_params: {model: os.environ/BEDROCK_HARD}}
-  - {model_name: auto,     litellm_params: {model: os.environ/BEDROCK_MODERATE}}  # placeholder, hook rewrites it
+  - {model_name: simple,   litellm_params: {model: os.environ/THRIFT_SIMPLE}}
+  - {model_name: moderate, litellm_params: {model: os.environ/THRIFT_MODERATE}}
+  - {model_name: hard,     litellm_params: {model: os.environ/THRIFT_HARD}}
+  - {model_name: auto,     litellm_params: {model: os.environ/THRIFT_MODERATE}}  # placeholder, hook rewrites it
 litellm_settings:
   callbacks: hook.router

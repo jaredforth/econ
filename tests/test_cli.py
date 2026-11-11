@@ -19,7 +19,7 @@ class TestCli(unittest.TestCase):
         return buf.getvalue().splitlines()
 
     def test_route_arg(self):
-        with mock.patch.dict("os.environ", {"BEDROCK_HARD": "m-hard"}):
+        with mock.patch.dict("os.environ", {"THRIFT_HARD": "m-hard"}):
             self.assertEqual(self.run_cli(["route", "hi"]), ["hard", "m-hard"])
 
     def test_route_no_model(self):
