@@ -1,7 +1,9 @@
+# Bedrock via the AWS credential chain; no Anthropic key. Set in .env: AWS_PROFILE, AWS_REGION_NAME,
+# BEDROCK_SIMPLE / BEDROCK_MODERATE / BEDROCK_HARD (exact inference-profile IDs, e.g. us.anthropic.<model>-v1:0).
 model_list:
-  - {model_name: simple,   litellm_params: {model: anthropic/claude-haiku-5-5,  api_key: os.environ/ANTHROPIC_API_KEY}}
-  - {model_name: moderate, litellm_params: {model: anthropic/claude-sonnet-5-5, api_key: os.environ/ANTHROPIC_API_KEY}}
-  - {model_name: hard,     litellm_params: {model: anthropic/claude-opus-5-5,   api_key: os.environ/ANTHROPIC_API_KEY}}
-  - {model_name: auto,     litellm_params: {model: anthropic/claude-sonnet-5-5, api_key: os.environ/ANTHROPIC_API_KEY}}  # placeholder, hook rewrites it
+  - {model_name: simple,   litellm_params: {model: os.environ/BEDROCK_SIMPLE}}
+  - {model_name: moderate, litellm_params: {model: os.environ/BEDROCK_MODERATE}}
+  - {model_name: hard,     litellm_params: {model: os.environ/BEDROCK_HARD}}
+  - {model_name: auto,     litellm_params: {model: os.environ/BEDROCK_MODERATE}}  # placeholder, hook rewrites it
 litellm_settings:
   callbacks: hook.router
