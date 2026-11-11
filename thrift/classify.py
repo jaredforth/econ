@@ -13,11 +13,15 @@ SYSTEM = ("Classify how much reasoning the user's request needs. "
           "Answer with the tier only.")
 
 
-def _url():
+def ollama_host():
     host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
     if "://" not in host:
         host = "http://" + host
-    return host.rstrip("/") + "/api/chat"
+    return host.rstrip("/")
+
+
+def _url():
+    return ollama_host() + "/api/chat"
 
 
 def last_user_text(messages):

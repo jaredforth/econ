@@ -1,23 +1,27 @@
 <p align="center"><img src="assets/logo.svg" alt="thrift" width="300"></p>
 
-Routes each prompt to the cheapest Claude tier that can handle it. [Laya](https://github.com/NandhaKishorM/laya) classifies the prompt locally in one forward pass (PyTorch, no Ollama); Haiku, Sonnet or Opus answers over the API.
+Routes each Claude request to the cheapest tier (Haiku, Sonnet or Opus) that can handle it. A local Ollama model classifies the prompt, then a LiteLLM proxy forwards it. Routing never leaves the machine.
 
 ```bash
-uv venv --python 3.12 && uv pip install laya anthropic
-.venv/bin/python router.py --dry "your prompt"   # route only
-.venv/bin/python router.py "your prompt"         # route and answer (ANTHROPIC_API_KEY)
+uv venv --python 3.12 && uv pip install -e .
+thrift init              # all-local preset (writes .env, runs doctor)
+thrift init --bedrock    # or the Bedrock preset: then fill in AWS_PROFILE and THRIFT_* model IDs
+thrift doctor            # re-check the setup, prints what to fix
+thrift serve             # http://127.0.0.1:4000
+eval "$(thrift env)"     # in the shell where you run Claude Code
 ```
 
-`build_labels.py` labels your Claude Code transcripts by effort, and `fit.py` fits Laya's tier head on them. Both stay local: `labels.csv` and `fit-tier/` are gitignored.
+If the classifier is down or returns garbage, requests fall back to the moderate (Sonnet) tier. Any OpenAI- or Anthropic-compatible client works with `model="auto"`.
 
-## Local router proxy
+Optional: `build_labels.py` labels your Claude Code transcripts by effort into `labels.csv` (gitignored) for `thrift bench`.
 
-A local Ollama model classifies each request, then LiteLLM forwards it to Haiku, Sonnet or Opus. Routing never leaves the machine.
+## Router model
 
-```bash
-ollama serve &                      # needs a local model; set ROUTER_MODEL in hook.py
-export ANTHROPIC_API_KEY=...
-./run.sh                            # http://127.0.0.1:4000, master key in .env
-```
+`thrift bench <model>` on `labels.csv` (n=182 prompts with state >= 120 chars; label proxy is tool-call count). Warm model, local Ollama.
 
-Point any OpenAI- or Anthropic-compatible client at it with `model="auto"`. For Claude Code: `ANTHROPIC_BASE_URL=http://127.0.0.1:4000` and `ANTHROPIC_AUTH_TOKEN=<LITELLM_MASTER_KEY from .env>`. Router down or garbled falls back to Sonnet.
+| model | acc | within1 | p50 | p95 |
+|---|---|---|---|---|
+| qwen3.6:35b-a3b (default) | 0.423 | 0.808 | 0.54s | 1.05s |
+| qwen3:4b | 0.374 | 0.698 | 0.40s | 0.97s |
+
+Both meet p50 <= 1.0s, so the default is the best within1. Override with `THRIFT_ROUTER_MODEL`. Only models already pulled were tested.

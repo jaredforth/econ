@@ -4,3 +4,4 @@ labels.csv
 fit-tier/
 .env
 proxy.log
+*.egg-info/
