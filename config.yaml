@@ -1,0 +1,7 @@
+model_list:
+  - {model_name: simple,   litellm_params: {model: anthropic/claude-haiku-5-5,  api_key: os.environ/ANTHROPIC_API_KEY}}
+  - {model_name: moderate, litellm_params: {model: anthropic/claude-sonnet-5-5, api_key: os.environ/ANTHROPIC_API_KEY}}
+  - {model_name: hard,     litellm_params: {model: anthropic/claude-opus-5-5,   api_key: os.environ/ANTHROPIC_API_KEY}}
+  - {model_name: auto,     litellm_params: {model: anthropic/claude-sonnet-5-5, api_key: os.environ/ANTHROPIC_API_KEY}}  # placeholder, hook rewrites it
+litellm_settings:
+  callbacks: hook.router

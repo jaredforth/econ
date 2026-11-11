@@ -9,3 +9,15 @@ uv venv --python 3.12 && uv pip install laya anthropic
 ```
 
 `build_labels.py` labels your Claude Code transcripts by effort, and `fit.py` fits Laya's tier head on them. Both stay local: `labels.csv` and `fit-tier/` are gitignored.
+
+## Local router proxy
+
+A local Ollama model classifies each request, then LiteLLM forwards it to Haiku, Sonnet or Opus. Routing never leaves the machine.
+
+```bash
+ollama serve &                      # needs a local model; set ROUTER_MODEL in hook.py
+export ANTHROPIC_API_KEY=...
+./run.sh                            # http://127.0.0.1:4000, master key in .env
+```
+
+Point any OpenAI- or Anthropic-compatible client at it with `model="auto"`. For Claude Code: `ANTHROPIC_BASE_URL=http://127.0.0.1:4000` and `ANTHROPIC_AUTH_TOKEN=<LITELLM_MASTER_KEY from .env>`. Router down or garbled falls back to Sonnet.
