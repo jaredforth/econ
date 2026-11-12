@@ -2,7 +2,15 @@
 name = "econ"
 version = "0.1.0"
 edition = "2021"
-description = "Pick the cheapest model that can handle a prompt"
+authors = ["Jared Forth"]
+description = "Pick the cheapest Claude model that can handle a prompt, then open Claude Code on it"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jaredforth/econ"
+homepage = "https://github.com/jaredforth/econ"
+readme = "README.md"
+keywords = ["claude", "llm", "cli", "router", "anthropic"]
+categories = ["command-line-utilities"]
+include = ["/src/**", "/tests/cli.rs", "/README.md", "/LICENSE-MIT", "/LICENSE-APACHE", "/assets/icon.png"]
 
 [dependencies]
 serde_json = "1"

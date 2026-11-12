@@ -1,5 +1,12 @@
 <p align="center"><img src="assets/icon.png" width="128" alt="econ logo"></p>
 
+<p align="center">
+<a href="https://crates.io/crates/econ"><img src="https://img.shields.io/crates/v/econ.svg" alt="crates.io"></a>
+<a href="https://github.com/jaredforth/econ/actions/workflows/ci.yml"><img src="https://github.com/jaredforth/econ/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="#license"><img src="https://img.shields.io/crates/l/econ.svg" alt="license"></a>
+<a href="https://crates.io/crates/econ"><img src="https://img.shields.io/crates/d/econ.svg" alt="downloads"></a>
+</p>
+
 ```console
 $ econ fix the typo in the README     # opens Claude Code on haiku
 $ econ design a multi-tenant billing schema   # opens Claude Code on opus
@@ -11,10 +18,16 @@ moderate
 
 A small model reads your prompt and picks the cheapest tier that can handle it: `simple`, `moderate` or `hard`. Then `econ` opens Claude Code (`claude --model <model> "<prompt>"`) on that tier's model: `haiku`, `sonnet` or `opus` unless you map them differently. The router is either a local [Ollama](https://ollama.com) model or Claude Haiku. If the router is down or returns garbage, you get `moderate`.
 
+## Install
+
+Needs [Rust](https://rustup.rs) and [Claude Code](https://claude.com/claude-code) (`claude` on your `PATH`).
+
 ```bash
-cargo install --path .
+cargo install econ        # from crates.io; re-run to update
 econ --help
 ```
+
+From source: `git clone https://github.com/jaredforth/econ && cargo install --path econ`.
 
 ## Config
 
@@ -50,3 +63,9 @@ To use another command than `claude`, set `ECON_CLAUDE`.
 ```bash
 cargo llvm-cov --fail-uncovered-lines 0
 ```
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
