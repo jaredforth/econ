@@ -1,5 +1,5 @@
 [package]
-name = "thrift"
+name = "econ"
 version = "0.1.0"
 edition = "2021"
 description = "Pick the cheapest model that can handle a prompt"

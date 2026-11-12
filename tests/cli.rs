@@ -1,10 +1,8 @@
+use econ::{config_path, parse_claude, parse_config, parse_tier, pick_tier, pick_tier_claude, run};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::process::Command;
 use std::sync::mpsc::{channel, Receiver};
-use thrift::{
-    config_path, parse_claude, parse_config, parse_tier, pick_tier, pick_tier_claude, run,
-};
 
 /// One-shot fake Ollama: reads the request, answers with `body`, returns host:port.
 fn fake(body: &'static str) -> String {
@@ -77,12 +75,11 @@ fn falls_back_to_moderate() {
 #[test]
 fn run_args_and_env() {
     assert!(run(&a(&[]), |_| None).is_err());
-    assert!(run(&a(&["a", "b"]), |_| None).is_err());
     let host = fake(HARD); // no scheme: run() adds http://
     let env = |k: &str| match k {
         "OLLAMA_HOST" => Some(host.clone()),
-        "THRIFT_ROUTER_MODEL" => Some("tiny".into()),
-        "THRIFT_HARD" => Some("opus".into()),
+        "ECON_ROUTER_MODEL" => Some("tiny".into()),
+        "ECON_HARD" => Some("opus".into()),
         _ => None,
     };
     assert_eq!(run(&a(&["design a db"]), env).unwrap(), "opus");
@@ -95,18 +92,18 @@ fn run_args_and_env() {
 
 #[test]
 fn binary() {
-    let bin = env!("CARGO_BIN_EXE_thrift");
+    let bin = env!("CARGO_BIN_EXE_econ");
     let out = Command::new(bin)
-        .env("THRIFT_CONFIG", "/nonexistent")
+        .env("ECON_CONFIG", "/nonexistent")
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&out.stderr).contains("usage"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("no prompt"));
     let out = Command::new(bin)
-        .env("THRIFT_CONFIG", "/nonexistent")
+        .env("ECON_CONFIG", "/nonexistent")
         .arg("hi")
         .env("OLLAMA_HOST", fake(SIMPLE))
-        .env("THRIFT_SIMPLE", "haiku")
+        .env("ECON_SIMPLE", "haiku")
         .output()
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "haiku");
@@ -142,10 +139,10 @@ fn claude_request_and_fallback() {
 fn run_with_haiku() {
     let (host, rx) = fake_capture(CLAUDE_HARD);
     let env = |k: &str| match k {
-        "THRIFT_ROUTER_MODEL" => Some("haiku".into()),
+        "ECON_ROUTER_MODEL" => Some("haiku".into()),
         "ANTHROPIC_API_KEY" => Some("k".into()),
         "ANTHROPIC_BASE_URL" => Some(format!("http://{host}")),
-        "THRIFT_HARD" => Some("opus".into()),
+        "ECON_HARD" => Some("opus".into()),
         _ => None,
     };
     assert_eq!(run(&a(&["design a db"]), env).unwrap(), "opus");
@@ -153,7 +150,7 @@ fn run_with_haiku() {
     // full model id passes through; no base url set -> real API default is used (unreachable key -> moderate or tier)
     let (host, rx) = fake_capture(CLAUDE_HARD);
     let env = |k: &str| match k {
-        "THRIFT_ROUTER_MODEL" => Some("claude-sonnet-5-5".into()),
+        "ECON_ROUTER_MODEL" => Some("claude-sonnet-5-5".into()),
         "ANTHROPIC_API_KEY" => Some("k".into()),
         "ANTHROPIC_BASE_URL" => Some(format!("http://{host}")),
         _ => None,
@@ -161,7 +158,7 @@ fn run_with_haiku() {
     assert_eq!(run(&a(&["x"]), env).unwrap(), "hard");
     assert!(rx.recv().unwrap().contains("claude-sonnet-5-5"));
     // missing key is an error
-    let env = |k: &str| (k == "THRIFT_ROUTER_MODEL").then(|| "haiku".to_string());
+    let env = |k: &str| (k == "ECON_ROUTER_MODEL").then(|| "haiku".to_string());
     assert!(run(&a(&["x"]), env)
         .unwrap_err()
         .contains("ANTHROPIC_API_KEY"));
@@ -169,8 +166,8 @@ fn run_with_haiku() {
 
 #[test]
 fn config_file_parsing_and_path() {
-    let c = parse_config(r#"{"THRIFT_ROUTER_MODEL": "haiku", "THRIFT_HARD": "opus"}"#).unwrap();
-    assert_eq!(c["THRIFT_ROUTER_MODEL"], "haiku");
+    let c = parse_config(r#"{"ECON_ROUTER_MODEL": "haiku", "ECON_HARD": "opus"}"#).unwrap();
+    assert_eq!(c["ECON_ROUTER_MODEL"], "haiku");
     assert_eq!(c.len(), 2);
     assert!(parse_config("not json")
         .unwrap_err()
@@ -180,39 +177,36 @@ fn config_file_parsing_and_path() {
         move |k: &str| pairs.iter().find(|p| p.0 == k).map(|p| p.1.to_string())
     };
     let p = |x: Option<std::path::PathBuf>| x.map(|p| p.to_string_lossy().into_owned());
-    assert_eq!(
-        p(config_path(get(&[("THRIFT_CONFIG", "/a")]))).unwrap(),
-        "/a"
-    );
+    assert_eq!(p(config_path(get(&[("ECON_CONFIG", "/a")]))).unwrap(), "/a");
     assert_eq!(
         p(config_path(get(&[("XDG_CONFIG_HOME", "/x")]))).unwrap(),
-        "/x/thrift/config.json"
+        "/x/econ/config.json"
     );
     assert_eq!(
         p(config_path(get(&[("HOME", "/h")]))).unwrap(),
-        "/h/.config/thrift/config.json"
+        "/h/.config/econ/config.json"
     );
     assert!(config_path(get(&[])).is_none());
 }
 
 fn tmp(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("thrift-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("econ-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir.join("config.json")
 }
 
 #[test]
 fn binary_reads_json_config_and_env_overrides_it() {
-    let bin = env!("CARGO_BIN_EXE_thrift");
+    let bin = env!("CARGO_BIN_EXE_econ");
     let cfg = tmp("bin");
     let host = fake(SIMPLE);
     std::fs::write(
         &cfg,
-        format!(r#"{{"OLLAMA_HOST": "{host}", "THRIFT_SIMPLE": "from-file"}}"#),
+        format!(r#"{{"OLLAMA_HOST": "{host}", "ECON_SIMPLE": "from-file"}}"#),
     )
     .unwrap();
     let out = |c: &mut Command| {
-        let o = c.arg("hi").env("THRIFT_CONFIG", &cfg).output().unwrap();
+        let o = c.arg("hi").env("ECON_CONFIG", &cfg).output().unwrap();
         (
             o.status.code(),
             String::from_utf8_lossy(&o.stdout).trim().to_string(),
@@ -223,7 +217,7 @@ fn binary_reads_json_config_and_env_overrides_it() {
     // env beats file (router unreachable -> tier name)
     let host2 = fake(SIMPLE);
     let o = out(Command::new(bin)
-        .env("THRIFT_SIMPLE", "from-env")
+        .env("ECON_SIMPLE", "from-env")
         .env("OLLAMA_HOST", host2));
     assert_eq!(o.1, "from-env");
     // broken config is a clear error, exit 2
@@ -242,70 +236,105 @@ fn binary_reads_json_config_and_env_overrides_it() {
 #[test]
 fn user_env_layers_file_under_process_env() {
     let cfg = tmp("env");
-    std::fs::write(
-        &cfg,
-        r#"{"THRIFT_TEST_A": "file", "THRIFT_TEST_B": "file"}"#,
-    )
-    .unwrap();
-    std::env::set_var("THRIFT_CONFIG", &cfg);
-    std::env::set_var("THRIFT_TEST_B", "env");
-    let env = thrift::user_env().unwrap();
-    assert_eq!(env("THRIFT_TEST_A").unwrap(), "file");
-    assert_eq!(env("THRIFT_TEST_B").unwrap(), "env");
-    assert_eq!(env("THRIFT_TEST_C"), None);
+    std::fs::write(&cfg, r#"{"ECON_TEST_A": "file", "ECON_TEST_B": "file"}"#).unwrap();
+    std::env::set_var("ECON_CONFIG", &cfg);
+    std::env::set_var("ECON_TEST_B", "env");
+    let env = econ::user_env().unwrap();
+    assert_eq!(env("ECON_TEST_A").unwrap(), "file");
+    assert_eq!(env("ECON_TEST_B").unwrap(), "env");
+    assert_eq!(env("ECON_TEST_C"), None);
     std::fs::write(&cfg, "bad").unwrap();
-    assert!(thrift::user_env().is_err());
+    assert!(econ::user_env().is_err());
     std::fs::remove_file(&cfg).unwrap();
-    assert!(thrift::user_env().is_ok());
-    std::env::remove_var("THRIFT_CONFIG");
+    assert!(econ::user_env().is_ok());
+    std::env::remove_var("ECON_CONFIG");
 }
 
 #[test]
 fn init_writes_and_merges_config() {
     let cfg = tmp("init");
     let _ = std::fs::remove_file(&cfg);
-    let env = |k: &str| (k == "THRIFT_CONFIG").then(|| cfg.to_string_lossy().into_owned());
+    let env = |k: &str| (k == "ECON_CONFIG").then(|| cfg.to_string_lossy().into_owned());
     // fresh: defaults
     assert!(run(&a(&["init"]), env).unwrap().contains("wrote"));
     let c = parse_config(&std::fs::read_to_string(&cfg).unwrap()).unwrap();
-    assert_eq!(c["THRIFT_ROUTER_MODEL"], "qwen3:4b");
-    assert_eq!(c["THRIFT_HARD"], "opus");
+    assert_eq!(c["ECON_ROUTER_MODEL"], "qwen3:4b");
+    assert_eq!(c["ECON_HARD"], "opus");
     // router arg overrides; custom keys and tier choices are kept
-    std::fs::write(
-        &cfg,
-        r#"{"THRIFT_SIMPLE": "mini", "ANTHROPIC_API_KEY": "k"}"#,
-    )
-    .unwrap();
+    std::fs::write(&cfg, r#"{"ECON_SIMPLE": "mini", "ANTHROPIC_API_KEY": "k"}"#).unwrap();
     run(&a(&["init", "haiku"]), env).unwrap();
     let c = parse_config(&std::fs::read_to_string(&cfg).unwrap()).unwrap();
-    assert_eq!(c["THRIFT_ROUTER_MODEL"], "haiku");
-    assert_eq!(c["THRIFT_SIMPLE"], "mini");
+    assert_eq!(c["ECON_ROUTER_MODEL"], "haiku");
+    assert_eq!(c["ECON_SIMPLE"], "mini");
     assert_eq!(c["ANTHROPIC_API_KEY"], "k");
-    assert_eq!(c["THRIFT_MODERATE"], "sonnet");
+    assert_eq!(c["ECON_MODERATE"], "sonnet");
     // re-running without an arg keeps the router
     run(&a(&["init"]), env).unwrap();
     let c = parse_config(&std::fs::read_to_string(&cfg).unwrap()).unwrap();
-    assert_eq!(c["THRIFT_ROUTER_MODEL"], "haiku");
+    assert_eq!(c["ECON_ROUTER_MODEL"], "haiku");
     // errors: broken file, unwritable location, no location
     std::fs::write(&cfg, "bad").unwrap();
     assert!(run(&a(&["init"]), env).unwrap_err().contains("config.json"));
     let under_file = cfg.join("x/config.json"); // parent is a file
-    let bad = |k: &str| (k == "THRIFT_CONFIG").then(|| under_file.to_string_lossy().into_owned());
+    let bad = |k: &str| (k == "ECON_CONFIG").then(|| under_file.to_string_lossy().into_owned());
     assert!(run(&a(&["init"]), bad).is_err());
     assert!(run(&a(&["init"]), |_| None).unwrap_err().contains("HOME"));
-    // too many args is just a (bad) prompt invocation
-    assert!(run(&a(&["init", "a", "b"]), env)
+    // more than `init [router]` is just a prompt (router down -> moderate)
+    let down = |k: &str| (k == "OLLAMA_HOST").then(|| "http://127.0.0.1:1".to_string());
+    assert_eq!(run(&a(&["init", "a", "b"]), down).unwrap(), "moderate");
+}
+
+#[test]
+fn cli_surface() {
+    let down = |k: &str| (k == "OLLAMA_HOST").then(|| "http://127.0.0.1:1".to_string());
+    assert!(run(&a(&["-h"]), down).unwrap().contains("usage:"));
+    assert!(run(&a(&["--help"]), down).unwrap().contains("--tier"));
+    assert!(run(&a(&["-V"]), down).unwrap().starts_with("econ 0."));
+    assert!(run(&a(&["--version"]), down).is_ok());
+    assert!(run(&a(&["--bogus"]), down)
         .unwrap_err()
-        .contains("usage"));
+        .contains("unknown option --bogus"));
+    assert!(run(&a(&[]), down).unwrap_err().contains("no prompt"));
+    assert!(run(&a(&["  "]), down).unwrap_err().contains("no prompt"));
+    // unquoted multi-word prompt, `--` escape, --tier ignores tier->model mapping
+    let mapped = |k: &str| match k {
+        "OLLAMA_HOST" => Some("http://127.0.0.1:1".to_string()),
+        "ECON_MODERATE" => Some("sonnet".to_string()),
+        _ => None,
+    };
+    assert_eq!(run(&a(&["fix", "the", "typo"]), mapped).unwrap(), "sonnet");
+    assert_eq!(run(&a(&["--", "-h", "me"]), mapped).unwrap(), "sonnet");
+    assert_eq!(run(&a(&["--tier", "x"]), mapped).unwrap(), "moderate");
+    assert_eq!(run(&a(&["x", "--tier"]), mapped).unwrap(), "moderate");
+}
+
+#[test]
+fn binary_reads_stdin() {
+    use std::process::Stdio;
+    let mut c = Command::new(env!("CARGO_BIN_EXE_econ"))
+        .env("ECON_CONFIG", "/nonexistent")
+        .env("OLLAMA_HOST", fake(SIMPLE))
+        .env("ECON_SIMPLE", "haiku")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    c.stdin
+        .take()
+        .unwrap()
+        .write_all(b"summarize this")
+        .unwrap();
+    let out = c.wait_with_output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "haiku");
 }
 
 #[test]
 fn binary_init() {
     let cfg = tmp("binit");
     let _ = std::fs::remove_file(&cfg);
-    let o = Command::new(env!("CARGO_BIN_EXE_thrift"))
+    let o = Command::new(env!("CARGO_BIN_EXE_econ"))
         .args(["init", "haiku"])
-        .env("THRIFT_CONFIG", &cfg)
+        .env("ECON_CONFIG", &cfg)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("wrote"));

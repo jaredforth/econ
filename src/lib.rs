@@ -1,4 +1,4 @@
-//! `thrift "prompt"`: a small local model picks the cheapest tier that can handle the prompt.
+//! `econ "prompt"`: a small local model picks the cheapest tier that can handle the prompt.
 use serde_json::{json, Value};
 
 pub const TIERS: [&str; 3] = ["simple", "moderate", "hard"];
@@ -64,22 +64,52 @@ pub fn pick_tier_claude(base: &str, key: &str, model: &str, prompt: &str) -> &'s
     .unwrap_or("moderate")
 }
 
-/// Config from env: THRIFT_ROUTER_MODEL (an Ollama model, `haiku`, or a `claude-*` id),
-/// OLLAMA_HOST, ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, THRIFT_SIMPLE/MODERATE/HARD.
-/// Prints the tier's model if THRIFT_<TIER> is set, else the tier name.
+/// Config from env: ECON_ROUTER_MODEL (an Ollama model, `haiku`, or a `claude-*` id),
+/// OLLAMA_HOST, ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ECON_SIMPLE/MODERATE/HARD.
+/// Prints the tier's model if ECON_<TIER> is set, else the tier name.
 pub fn run(args: &[String], env: impl Fn(&str) -> Option<String>) -> Result<String, String> {
     run_dyn(args, &env)
 }
 
+pub const USAGE: &str = "\
+econ: pick the cheapest model that can handle a prompt
+
+usage:
+  econ <prompt...>          print the model for the prompt's tier
+  echo <prompt> | econ      read the prompt from stdin
+  econ init [router]        write ~/.config/econ/config.json
+
+options:
+  --tier         print the tier (simple|moderate|hard), not the model
+  --             treat everything after it as the prompt
+  -h, --help     show this help
+  -V, --version  show the version";
+
 fn run_dyn(args: &[String], env: &dyn Fn(&str) -> Option<String>) -> Result<String, String> {
-    if args.first().map(String::as_str) == Some("init") && args.len() <= 2 {
-        let path = config_path_dyn(env).ok_or("no config location: set HOME or THRIFT_CONFIG")?;
-        return init(&path, args.get(1).map(String::as_str));
-    }
-    let [prompt] = args else {
-        return Err("usage: thrift \"the prompt\" | thrift init [router-model]".into());
+    let tier_only = args.iter().any(|a| a == "--tier");
+    let rest: Vec<&str> = args
+        .iter()
+        .map(String::as_str)
+        .filter(|a| *a != "--tier")
+        .collect();
+    let prompt = match rest.as_slice() {
+        ["-h" | "--help", ..] => return Ok(USAGE.into()),
+        ["-V" | "--version", ..] => return Ok(format!("econ {}", env!("CARGO_PKG_VERSION"))),
+        ["init"] | ["init", _] => {
+            let path = config_path_dyn(env).ok_or("econ: set HOME or ECON_CONFIG")?;
+            return init(&path, rest.get(1).copied());
+        }
+        ["--", p @ ..] => p.join(" "),
+        [o, ..] if o.starts_with('-') => {
+            return Err(format!("econ: unknown option {o}\n\n{USAGE}"))
+        }
+        p => p.join(" "),
     };
-    let model = env("THRIFT_ROUTER_MODEL").unwrap_or_else(|| "qwen3:4b".into());
+    if prompt.trim().is_empty() {
+        return Err(format!("econ: no prompt\n\n{USAGE}"));
+    }
+    let prompt = prompt.as_str();
+    let model = env("ECON_ROUTER_MODEL").unwrap_or_else(|| "qwen3:4b".into());
     let tier = if model == "haiku" || model.starts_with("claude") {
         let key = env("ANTHROPIC_API_KEY").ok_or("set ANTHROPIC_API_KEY to route with Claude")?;
         let base = env("ANTHROPIC_BASE_URL").unwrap_or("https://api.anthropic.com".into());
@@ -96,27 +126,30 @@ fn run_dyn(args: &[String], env: &dyn Fn(&str) -> Option<String>) -> Result<Stri
         }
         pick_tier(&host, &model, prompt)
     };
-    Ok(env(&format!("THRIFT_{}", tier.to_uppercase())).unwrap_or_else(|| tier.into()))
+    if tier_only {
+        return Ok(tier.into());
+    }
+    Ok(env(&format!("ECON_{}", tier.to_uppercase())).unwrap_or_else(|| tier.into()))
 }
 
-/// Flat JSON object of string values, e.g. {"THRIFT_ROUTER_MODEL": "haiku"}.
+/// Flat JSON object of string values, e.g. {"ECON_ROUTER_MODEL": "haiku"}.
 pub fn parse_config(text: &str) -> Result<std::collections::HashMap<String, String>, String> {
     serde_json::from_str(text).map_err(|e| format!("config must be a JSON object of strings: {e}"))
 }
 
-/// $THRIFT_CONFIG, else $XDG_CONFIG_HOME/thrift/config.json, else ~/.config/thrift/config.json.
+/// $ECON_CONFIG, else $XDG_CONFIG_HOME/econ/config.json, else ~/.config/econ/config.json.
 pub fn config_path(env: impl Fn(&str) -> Option<String>) -> Option<std::path::PathBuf> {
     config_path_dyn(&env)
 }
 
 fn config_path_dyn(env: &dyn Fn(&str) -> Option<String>) -> Option<std::path::PathBuf> {
-    if let Some(p) = env("THRIFT_CONFIG") {
+    if let Some(p) = env("ECON_CONFIG") {
         return Some(p.into());
     }
     let base = env("XDG_CONFIG_HOME")
         .map(std::path::PathBuf::from)
         .or_else(|| env("HOME").map(|h| std::path::Path::new(&h).join(".config")))?;
-    Some(base.join("thrift/config.json"))
+    Some(base.join("econ/config.json"))
 }
 
 /// Process env first, then the config file (same key names). A missing file is fine; a broken one is an error.
@@ -139,13 +172,13 @@ pub fn init(path: &std::path::Path, router: Option<&str>) -> Result<String, Stri
     };
     let mut cfg: std::collections::BTreeMap<_, _> = cfg.drain().collect();
     if let Some(r) = router {
-        cfg.insert("THRIFT_ROUTER_MODEL".into(), r.into());
+        cfg.insert("ECON_ROUTER_MODEL".into(), r.into());
     }
     for (k, v) in [
-        ("THRIFT_ROUTER_MODEL", "qwen3:4b"),
-        ("THRIFT_SIMPLE", "haiku"),
-        ("THRIFT_MODERATE", "sonnet"),
-        ("THRIFT_HARD", "opus"),
+        ("ECON_ROUTER_MODEL", "qwen3:4b"),
+        ("ECON_SIMPLE", "haiku"),
+        ("ECON_MODERATE", "sonnet"),
+        ("ECON_HARD", "opus"),
     ] {
         cfg.entry(k.into()).or_insert(v.into());
     }
