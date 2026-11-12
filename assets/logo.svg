@@ -1,13 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <rect x="100" y="100" width="824" height="824" rx="200" fill="#1c1c1e"/>
-  <!-- hand-drawn piggy bank: one bold pencil line, coin dropping in -->
-  <g fill="none" stroke="#f5f5f5" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M300 560 C296 450 390 400 500 402 C620 404 706 450 704 548 C702 640 620 690 505 690 C390 690 304 650 300 560 Z"/>
-    <path d="M704 512 C752 496 796 520 796 556 C796 594 752 612 706 596"/>
-    <path d="M590 415 L622 340 L672 440"/>
-    <path d="M390 680 L388 755 M600 683 L602 755"/>
-    <path d="M304 540 C262 512 232 540 256 566"/>
-    <path d="M452 262 C452 212 560 214 558 264 C556 316 450 312 452 262 Z"/>
-  </g>
-  <circle cx="655" cy="505" r="16" fill="#f5f5f5"/>
+  <!-- three tiers, shrinking: simple, moderate, hard -->
+  <rect x="280" y="330" width="464" height="100" rx="50" fill="#f5f5f5"/>
+  <rect x="280" y="462" width="336" height="100" rx="50" fill="#9a9a9e"/>
+  <rect x="280" y="594" width="208" height="100" rx="50" fill="#5a5a5e"/>
 </svg>
