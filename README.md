@@ -58,6 +58,22 @@ econ init haiku      # same, with Claude Haiku as the router
 
 To use another command than `claude`, set `ECON_CLAUDE`.
 
+## Benchmarks
+
+36 hand-labeled prompts (12 per tier, in [`bench/prompts.tsv`](bench/prompts.tsv)), routed with the default local router (`qwen3:4b` on Ollama, Apple M3 Pro, model already loaded). Reproduce with `bench/run.sh`.
+
+| | result |
+|---|---|
+| Accuracy | 31/36 (86%) |
+| `simple` | 12/12 |
+| `moderate` | 7/12 |
+| `hard` | 12/12 |
+| Routed too cheap | 1 |
+| Routed too expensive | 4 |
+| Latency (`econ --tier`) | median 0.30s, p95 0.34s |
+
+Misses lean toward the pricier tier, so you pay a bit more rather than get a weak answer. Most misses are `moderate` prompts. The labels are the author's judgment and the set is small, so treat this as a sanity check rather than a leaderboard.
+
 ## Test
 
 ```bash

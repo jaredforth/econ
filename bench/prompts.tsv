@@ -1,0 +1,36 @@
+simple	fix the typo in the README
+simple	what does the -r flag do in grep
+simple	rename the variable foo to count in this function
+simple	summarize this paragraph in one sentence
+simple	convert this JSON snippet to YAML
+simple	add a docstring to this function
+simple	what is the capital of Australia
+simple	format this SQL query with consistent indentation
+simple	extract all email addresses from this text
+simple	write a commit message for adding a --verbose flag
+simple	list the git command to undo the last commit
+simple	translate this error message into plain English
+moderate	add pagination to the users list endpoint
+moderate	write unit tests for the parse_config function
+moderate	refactor this class to use dependency injection
+moderate	why does this React component re-render on every keystroke
+moderate	add retry with exponential backoff to the HTTP client
+moderate	write a script that dedupes rows in a CSV by email
+moderate	implement a debounced search box with loading state
+moderate	review this pull request for obvious bugs
+moderate	migrate this function from callbacks to async/await
+moderate	add a CLI flag to export results as JSON
+moderate	write a SQL query for monthly revenue by cohort
+moderate	set up GitHub Actions to run tests and lint on PRs
+hard	design a multi-tenant billing schema that supports usage-based and seat-based pricing with proration
+hard	debug an intermittent deadlock between our job scheduler and the connection pool under load
+hard	prove that this lock-free queue implementation is linearizable
+hard	plan a zero-downtime migration of a 5TB Postgres database to a sharded architecture
+hard	architect an event-sourced order system with exactly-once semantics across services
+hard	find the race condition causing duplicate payments in our checkout flow
+hard	design a rate limiter that is fair across tenants and survives a Redis failover
+hard	evaluate the security implications of moving our auth from sessions to JWTs across mobile and web
+hard	derive the closed-form solution for this recurrence and bound its error
+hard	redesign our caching layer to guarantee consistency between the CDN, app cache and database
+hard	diagnose why our distributed training run diverges only on multi-node setups
+hard	decide how to restructure the monorepo, build system and ownership model for 200 engineers
