@@ -1,13 +1,15 @@
 <p align="center"><img src="assets/icon.png" width="128" alt="econ logo"></p>
 
 ```console
-$ econ rename this variable across the file
-simple
-$ git diff | econ --tier
+$ econ fix the typo in the README     # opens Claude Code on haiku
+$ econ design a multi-tenant billing schema   # opens Claude Code on opus
+$ econ -n rename this variable        # dry run: just prints the model
+haiku
+$ git diff | econ --tier              # piped input prints the tier
 moderate
 ```
 
-A small model reads your prompt and picks the cheapest tier that can handle it: `simple`, `moderate` or `hard`. The router is either a local [Ollama](https://ollama.com) model or Claude Haiku. If the router is down or returns garbage, you get `moderate`.
+A small model reads your prompt and picks the cheapest tier that can handle it: `simple`, `moderate` or `hard`. Then `econ` opens Claude Code (`claude --model <model> "<prompt>"`) on that tier's model: `haiku`, `sonnet` or `opus` unless you map them differently. The router is either a local [Ollama](https://ollama.com) model or Claude Haiku. If the router is down or returns garbage, you get `moderate`.
 
 ```bash
 cargo install --path .
@@ -41,9 +43,7 @@ econ init haiku      # same, with Claude Haiku as the router
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Claude only |
 | `ECON_SIMPLE` / `ECON_MODERATE` / `ECON_HARD` | unset | model to print for each tier; unset prints the tier name |
 
-```bash
-claude --model "$(econ 'fix the typo in README')"
-```
+To use another command than `claude`, set `ECON_CLAUDE`.
 
 ## Test
 

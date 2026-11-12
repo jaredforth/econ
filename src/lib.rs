@@ -64,40 +64,64 @@ pub fn pick_tier_claude(base: &str, key: &str, model: &str, prompt: &str) -> &'s
     .unwrap_or("moderate")
 }
 
-/// Config from env: ECON_ROUTER_MODEL (an Ollama model, `haiku`, or a `claude-*` id),
-/// OLLAMA_HOST, ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ECON_SIMPLE/MODERATE/HARD.
-/// Prints the tier's model if ECON_<TIER> is set, else the tier name.
-pub fn run(args: &[String], env: impl Fn(&str) -> Option<String>) -> Result<String, String> {
-    run_dyn(args, &env)
+/// What the CLI should do next.
+#[derive(Debug, PartialEq)]
+pub enum Out {
+    /// Print this and exit.
+    Print(String),
+    /// Replace this process with Claude Code on `model`, starting with `prompt`.
+    Launch { model: String, prompt: String },
 }
 
 pub const USAGE: &str = "\
-econ: pick the cheapest model that can handle a prompt
+econ: pick the cheapest Claude model for a prompt, then open Claude Code on it
 
 usage:
-  econ <prompt...>          print the model for the prompt's tier
-  echo <prompt> | econ      read the prompt from stdin
+  econ <prompt...>          open Claude Code on the model for the prompt's tier
+  econ -n <prompt...>       just print the model (dry run)
+  echo <prompt> | econ      read the prompt from stdin (prints the model)
   econ init [router]        write ~/.config/econ/config.json
 
 options:
-  --tier         print the tier (simple|moderate|hard), not the model
+  -n, --dry-run  print the model instead of opening Claude Code
+  --tier         print the tier (simple|moderate|hard) instead
   --             treat everything after it as the prompt
   -h, --help     show this help
-  -V, --version  show the version";
+  -V, --version  show the version
 
-fn run_dyn(args: &[String], env: &dyn Fn(&str) -> Option<String>) -> Result<String, String> {
-    let tier_only = args.iter().any(|a| a == "--tier");
+config (json or env): ECON_ROUTER_MODEL (Ollama model, haiku, or claude-* id), OLLAMA_HOST,
+ANTHROPIC_API_KEY, ECON_SIMPLE / ECON_MODERATE / ECON_HARD (default haiku / sonnet / opus),
+ECON_CLAUDE (default `claude`)";
+
+/// Like `plan`, but never launches: a launch becomes just the model name.
+pub fn run(args: &[String], env: impl Fn(&str) -> Option<String>) -> Result<String, String> {
+    Ok(match plan_dyn(args, &env)? {
+        Out::Print(s) => s,
+        Out::Launch { model, .. } => model,
+    })
+}
+
+/// Decide what to do. Config from env: ECON_ROUTER_MODEL (an Ollama model, `haiku`, or a
+/// `claude-*` id), OLLAMA_HOST, ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ECON_SIMPLE/MODERATE/HARD.
+pub fn plan(args: &[String], env: impl Fn(&str) -> Option<String>) -> Result<Out, String> {
+    plan_dyn(args, &env)
+}
+
+fn plan_dyn(args: &[String], env: &dyn Fn(&str) -> Option<String>) -> Result<Out, String> {
+    let has = |f: &[&str]| args.iter().any(|a| f.contains(&a.as_str()));
+    let (tier_only, dry) = (has(&["--tier"]), has(&["-n", "--dry-run"]));
     let rest: Vec<&str> = args
         .iter()
         .map(String::as_str)
-        .filter(|a| *a != "--tier")
+        .filter(|a| !["--tier", "-n", "--dry-run"].contains(a))
         .collect();
+    let print = |s: String| Ok(Out::Print(s));
     let prompt = match rest.as_slice() {
-        ["-h" | "--help", ..] => return Ok(USAGE.into()),
-        ["-V" | "--version", ..] => return Ok(format!("econ {}", env!("CARGO_PKG_VERSION"))),
+        ["-h" | "--help", ..] => return print(USAGE.into()),
+        ["-V" | "--version", ..] => return print(format!("econ {}", env!("CARGO_PKG_VERSION"))),
         ["init"] | ["init", _] => {
             let path = config_path_dyn(env).ok_or("econ: set HOME or ECON_CONFIG")?;
-            return init(&path, rest.get(1).copied());
+            return init(&path, rest.get(1).copied()).map(Out::Print);
         }
         ["--", p @ ..] => p.join(" "),
         [o, ..] if o.starts_with('-') => {
@@ -111,7 +135,8 @@ fn run_dyn(args: &[String], env: &dyn Fn(&str) -> Option<String>) -> Result<Stri
     let prompt = prompt.as_str();
     let model = env("ECON_ROUTER_MODEL").unwrap_or_else(|| "qwen3:4b".into());
     let tier = if model == "haiku" || model.starts_with("claude") {
-        let key = env("ANTHROPIC_API_KEY").ok_or("set ANTHROPIC_API_KEY to route with Claude")?;
+        let key =
+            env("ANTHROPIC_API_KEY").ok_or("econ: set ANTHROPIC_API_KEY to route with Claude")?;
         let base = env("ANTHROPIC_BASE_URL").unwrap_or("https://api.anthropic.com".into());
         let model = if model == "haiku" {
             "claude-haiku-5-5"
@@ -127,9 +152,17 @@ fn run_dyn(args: &[String], env: &dyn Fn(&str) -> Option<String>) -> Result<Stri
         pick_tier(&host, &model, prompt)
     };
     if tier_only {
-        return Ok(tier.into());
+        return print(tier.into());
     }
-    Ok(env(&format!("ECON_{}", tier.to_uppercase())).unwrap_or_else(|| tier.into()))
+    let alias = ["haiku", "sonnet", "opus"][TIERS.iter().position(|t| *t == tier).unwrap()];
+    let model = env(&format!("ECON_{}", tier.to_uppercase())).unwrap_or(alias.into());
+    if dry {
+        return print(model);
+    }
+    Ok(Out::Launch {
+        model,
+        prompt: prompt.into(),
+    })
 }
 
 /// Flat JSON object of string values, e.g. {"ECON_ROUTER_MODEL": "haiku"}.

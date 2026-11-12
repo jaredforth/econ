@@ -1,4 +1,7 @@
-use econ::{config_path, parse_claude, parse_config, parse_tier, pick_tier, pick_tier_claude, run};
+use econ::{
+    config_path, parse_claude, parse_config, parse_tier, pick_tier, pick_tier_claude, plan, run,
+    Out,
+};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::process::Command;
@@ -85,7 +88,7 @@ fn run_args_and_env() {
     assert_eq!(run(&a(&["design a db"]), env).unwrap(), "opus");
     // tier model unset -> tier name; router unreachable -> moderate
     let down = |k: &str| (k == "OLLAMA_HOST").then(|| "http://127.0.0.1:1".to_string());
-    assert_eq!(run(&a(&["x"]), down).unwrap(), "moderate");
+    assert_eq!(run(&a(&["x"]), down).unwrap(), "sonnet");
     // all defaults
     assert!(run(&a(&["x"]), |_| None).is_ok());
 }
@@ -101,7 +104,7 @@ fn binary() {
     assert!(String::from_utf8_lossy(&out.stderr).contains("no prompt"));
     let out = Command::new(bin)
         .env("ECON_CONFIG", "/nonexistent")
-        .arg("hi")
+        .args(["-n", "hi"])
         .env("OLLAMA_HOST", fake(SIMPLE))
         .env("ECON_SIMPLE", "haiku")
         .output()
@@ -155,7 +158,7 @@ fn run_with_haiku() {
         "ANTHROPIC_BASE_URL" => Some(format!("http://{host}")),
         _ => None,
     };
-    assert_eq!(run(&a(&["x"]), env).unwrap(), "hard");
+    assert_eq!(run(&a(&["x"]), env).unwrap(), "opus");
     assert!(rx.recv().unwrap().contains("claude-sonnet-5-5"));
     // missing key is an error
     let env = |k: &str| (k == "ECON_ROUTER_MODEL").then(|| "haiku".to_string());
@@ -206,7 +209,11 @@ fn binary_reads_json_config_and_env_overrides_it() {
     )
     .unwrap();
     let out = |c: &mut Command| {
-        let o = c.arg("hi").env("ECON_CONFIG", &cfg).output().unwrap();
+        let o = c
+            .args(["-n", "hi"])
+            .env("ECON_CONFIG", &cfg)
+            .output()
+            .unwrap();
         (
             o.status.code(),
             String::from_utf8_lossy(&o.stdout).trim().to_string(),
@@ -229,7 +236,7 @@ fn binary_reads_json_config_and_env_overrides_it() {
     std::fs::remove_file(&cfg).unwrap();
     assert_eq!(
         out(Command::new(bin).env("OLLAMA_HOST", "127.0.0.1:1")).1,
-        "moderate"
+        "sonnet"
     );
 }
 
@@ -281,7 +288,7 @@ fn init_writes_and_merges_config() {
     assert!(run(&a(&["init"]), |_| None).unwrap_err().contains("HOME"));
     // more than `init [router]` is just a prompt (router down -> moderate)
     let down = |k: &str| (k == "OLLAMA_HOST").then(|| "http://127.0.0.1:1".to_string());
-    assert_eq!(run(&a(&["init", "a", "b"]), down).unwrap(), "moderate");
+    assert_eq!(run(&a(&["init", "a", "b"]), down).unwrap(), "sonnet");
 }
 
 #[test]
@@ -339,4 +346,53 @@ fn binary_init() {
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("wrote"));
     assert!(std::fs::read_to_string(&cfg).unwrap().contains("\"haiku\""));
+}
+
+#[test]
+fn launches_claude_on_the_routed_model() {
+    use std::os::unix::fs::PermissionsExt;
+    let script = tmp("claude").with_file_name("fake-claude");
+    std::fs::write(&script, "#!/bin/sh\necho \"$@\"\n").unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let bin = env!("CARGO_BIN_EXE_econ");
+    let o = Command::new(bin)
+        .args(["fix", "the", "typo"])
+        .env("ECON_CONFIG", "/nonexistent")
+        .env("ECON_CLAUDE", &script)
+        .env("OLLAMA_HOST", fake(SIMPLE))
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&o.stdout).trim(),
+        "--model haiku fix the typo"
+    );
+    // claude missing: clear error, exit 2
+    let o = Command::new(bin)
+        .arg("x")
+        .env("ECON_CONFIG", "/nonexistent")
+        .env("ECON_CLAUDE", "/nonexistent/claude")
+        .env("OLLAMA_HOST", fake(SIMPLE))
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&o.stderr).contains("can't run"));
+}
+
+#[test]
+fn plan_launches_by_default_and_dry_run_prints() {
+    let host = fake(HARD);
+    let env = |k: &str| (k == "OLLAMA_HOST").then(|| host.clone());
+    assert_eq!(
+        plan(&a(&["design", "a", "db"]), env).unwrap(),
+        Out::Launch {
+            model: "opus".into(),
+            prompt: "design a db".into()
+        }
+    );
+    let host2 = fake(HARD);
+    let env2 = |k: &str| (k == "OLLAMA_HOST").then(|| host2.clone());
+    assert_eq!(
+        plan(&a(&["--dry-run", "x"]), env2).unwrap(),
+        Out::Print("opus".into())
+    );
 }
