@@ -1,27 +1,30 @@
 <p align="center"><img src="assets/logo.svg" alt="thrift" width="300"></p>
 
-Routes each Claude request to the cheapest tier (Haiku, Sonnet or Opus) that can handle it. A local Ollama model classifies the prompt, then a LiteLLM proxy forwards it. Routing never leaves the machine.
-
-```bash
-uv venv --python 3.12 && uv pip install -e .
-thrift init              # all-local preset (writes .env, runs doctor)
-thrift init --bedrock    # or the Bedrock preset: then fill in AWS_PROFILE and THRIFT_* model IDs
-thrift doctor            # re-check the setup, prints what to fix
-thrift serve             # http://127.0.0.1:4000
-eval "$(thrift env)"     # in the shell where you run Claude Code
+```console
+$ thrift "rename this variable across the file"
+simple
 ```
 
-If the classifier is down or returns garbage, requests fall back to the moderate (Sonnet) tier. Any OpenAI- or Anthropic-compatible client works with `model="auto"`.
+A small local model (via [Ollama](https://ollama.com)) reads your prompt and picks the cheapest tier that can handle it: `simple`, `moderate` or `hard`. If the router is down or returns garbage, you get `moderate`.
 
-Optional: `build_labels.py` labels your Claude Code transcripts by effort into `labels.csv` (gitignored) for `thrift bench`.
+```bash
+cargo install --path .
+```
 
-## Router model
+## Config (env vars)
 
-`thrift bench <model>` on `labels.csv` (n=182 prompts with state >= 120 chars; label proxy is tool-call count). Warm model, local Ollama.
+| var | default | |
+|---|---|---|
+| `THRIFT_ROUTER_MODEL` | `qwen3:4b` | any Ollama model |
+| `OLLAMA_HOST` | `http://localhost:11434` | |
+| `THRIFT_SIMPLE` / `THRIFT_MODERATE` / `THRIFT_HARD` | unset | model to print for each tier; unset prints the tier name |
 
-| model | acc | within1 | p50 | p95 |
-|---|---|---|---|---|
-| qwen3.6:35b-a3b (default) | 0.423 | 0.808 | 0.54s | 1.05s |
-| qwen3:4b | 0.374 | 0.698 | 0.40s | 0.97s |
+```bash
+THRIFT_SIMPLE=haiku THRIFT_MODERATE=sonnet THRIFT_HARD=opus claude --model "$(thrift 'fix the typo in README')"
+```
 
-Both meet p50 <= 1.0s, so the default is the best within1. Override with `THRIFT_ROUTER_MODEL`. Only models already pulled were tested.
+## Test
+
+```bash
+cargo llvm-cov --fail-uncovered-lines 0
+```

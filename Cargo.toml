@@ -1,0 +1,9 @@
+[package]
+name = "thrift"
+version = "0.1.0"
+edition = "2021"
+description = "Pick the cheapest model that can handle a prompt"
+
+[dependencies]
+serde_json = "1"
+ureq = { version = "2", default-features = false, features = ["json"] }

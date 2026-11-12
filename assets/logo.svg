@@ -1,10 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-label="thrift">
-  <style>
-    .t{font:700 44px ui-rounded,'SF Pro Rounded',system-ui,sans-serif;fill:#1f2937}
-    @media (prefers-color-scheme:dark){.t{fill:#f3f4f6}}
-  </style>
-  <rect x="8" y="12" width="64" height="18" rx="9" fill="#cbd5e1"/>
-  <rect x="8" y="39" width="46" height="18" rx="9" fill="#14b8a6"/>
-  <rect x="8" y="66" width="28" height="18" rx="9" fill="#0f766e"/>
-  <text class="t" x="92" y="64">thrift</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 120" role="img" aria-label="thrift">
+  <rect width="250" height="120" fill="#fff"/>
+  <g fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- t -->
+    <path d="M30 26 C31 44 29 62 32 75 C33 80 38 81 45 78"/>
+    <path d="M17 49 C27 47 38 51 47 48"/>
+    <!-- h -->
+    <path d="M63 20 C64 40 62 60 63 80"/>
+    <path d="M63 58 C69 47 83 46 87 56 C89 64 87 72 88 80"/>
+    <!-- r -->
+    <path d="M106 49 C107 60 105 70 106 80"/>
+    <path d="M106 61 C109 52 117 47 126 50"/>
+    <!-- i -->
+    <path d="M143 50 C144 60 142 70 143 80"/>
+    <path d="M141 33 C142 31 145 32 144 36 C143 38 140 37 141 33"/>
+    <!-- f -->
+    <path d="M170 80 C169 60 171 40 174 30 C176 24 182 21 189 24"/>
+    <path d="M160 50 C170 48 180 52 190 49"/>
+    <!-- t -->
+    <path d="M214 26 C215 44 213 62 216 75 C217 80 222 81 229 78"/>
+    <path d="M201 49 C211 47 222 51 231 48"/>
+    <!-- wobbly underline -->
+    <path d="M10 98 C50 94 90 101 130 97 C170 93 210 100 240 96" stroke-width="3.5"/>
+  </g>
 </svg>

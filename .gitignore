@@ -1,7 +1,7 @@
-.venv/
-__pycache__/
-labels.csv
-fit-tier/
+target/
 .env
+fit-tier/
+labels.csv
 proxy.log
+__pycache__/
 *.egg-info/
