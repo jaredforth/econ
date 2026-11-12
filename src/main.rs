@@ -1,7 +1,6 @@
 fn main() {
-    match thrift::run(&std::env::args().skip(1).collect::<Vec<_>>(), |k| {
-        std::env::var(k).ok()
-    }) {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    match thrift::user_env().and_then(|env| thrift::run(&args, env)) {
         Ok(out) => println!("{out}"),
         Err(e) => {
             eprintln!("{e}");
