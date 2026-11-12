@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.svg" alt="thrift" width="300"></p>
+<p align="center"><img src="assets/icon.png" width="128" alt="thrift logo"></p>
 
 ```console
 $ thrift "rename this variable across the file"
